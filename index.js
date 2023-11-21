@@ -1,47 +1,73 @@
-const nameInput = document.getElementById("name");
-const emailInput = document.getElementById("email");
-const passwordInput = document.getElementById("password");
-const dobInput = document.getElementById("dob");
-const termsCheckbox = document.getElementById("acceptTerms");
-const submitButton = document.getElementById("submit");
-const historyTable = document.getElementById("history");
+// DOM elements
+const formEl = document.getElementById("form");
+const submitBtnEl = document.getElementById("submit");
+const namesEl = document.getElementById("name");
+const emailEl = document.getElementById("email");
+const passwordEl = document.getElementById("password");
+const dobEl = document.getElementById("dob");
+const termsEl = document.getElementById("acceptTerms");
 
-const currentDate = new Date();
-let allEntries = [];
+// Constants
+const minAge = 18;
+const maxAge = 55;
 
-const isValidDate = (givenDate) => {
-    const userDate = givenDate.split("-").map(Number);
-    const validYear = userDate[0] >= currentDate.getFullYear() - 55 && userDate[0] <= currentDate.getFullYear() - 18;
-    const validMonth = (userDate[0] === currentDate.getFullYear() - 55 && userDate[1] >= currentDate.getMonth() + 1) || (userDate[0] === currentDate.getFullYear() - 18 && userDate[1] <= currentDate.getMonth() + 1) || validYear;
-    const validDay = (userDate[0] === currentDate.getFullYear() - 55 && userDate[2] >= currentDate.getDate()) || (userDate[0] === currentDate.getFullYear() - 18 && userDate[2] <= currentDate.getDate()) || validYear;
+// Utility functions
+const formatDate = (date) => new Intl.DateTimeFormat("en-US").format(date);
 
-    return validYear && validMonth && validDay;
+const isDateValid = (givenDate) => {
+	const userDate = new Date(givenDate);
+	const eighteenYearsAgo = new Date();
+	eighteenYearsAgo.setFullYear(eighteenYearsAgo.getFullYear() - minAge);
+	const fiftyFiveYearsAgo = new Date();
+	fiftyFiveYearsAgo.setFullYear(fiftyFiveYearsAgo.getFullYear() - maxAge);
+
+	return (
+		userDate >= fiftyFiveYearsAgo && userDate <= eighteenYearsAgo
+	);
 };
 
-const isInputValid = (element) => element.validity.valid;
+const isFormValid = () => formEl.checkValidity();
 
-const formatDigits = (num) => (num < 10) ? "0" + num : num;
+const getAllEntries = () => JSON.parse(localStorage.getItem("userData")) || [];
 
-const storeUserData = (name, email, password, dob, terms) => {
-    const userData = {name, email, password, dob, terms};
-    allEntries.push(userData);
-    localStorage.setItem('userData', JSON.stringify(allEntries));
+const displayHistory = () => {
+	const allEntries = getAllEntries();
+	const historyEl = document.getElementById("userTable");
+	
+	const tableHeader = `<tr>
+        <th>Name</th>
+        <th>Email</th>
+        <th>Password</th>
+        <th>Dob</th>
+        <th>Accepted terms?</th>
+    </tr>`;
+
+	historyEl.innerHTML = tableHeader + allEntries
+		.map(entry => `<tr>${Object.values(entry).map(value => `<td>${value}</td>`).join("")}</tr>`)
+		.join("\n");
 };
 
-const retrieveUserData = () => {
-    allEntries = JSON.parse(localStorage.getItem("userData")) || [];
-    const view = allEntries.map(entry => `<tr>${Object.values(entry).map(value => `<td>${value}</td>`).join("")}</tr>`).join("\n");
-    historyTable.innerHTML += view;
+const saveToStorage = (name, email, password, dob, terms) => {
+	const userData = { name, email, password, dob, terms };
+	const allEntries = getAllEntries();
+	allEntries.push(userData);
+	localStorage.setItem("userData", JSON.stringify(allEntries));
 };
 
-submitButton.addEventListener("click", () => {
-    const userDate = dobInput.value;
+// Event listener for form submission
+formEl.addEventListener("submit", (e) => {
+	e.preventDefault();
+	if (!isFormValid()) return;
 
-    alert(!isValidDate(userDate) && `Date must be between ${currentDate.getFullYear() - 55}-${formatDigits(currentDate.getMonth() + 1)}-${formatDigits(currentDate.getDate())} and ${currentDate.getFullYear() - 18}-${formatDigits(currentDate.getMonth() + 1)}-${formatDigits(currentDate.getDate())}`);
+	if (!isDateValid(dobEl.value)) {
+		alert(`Date must be between ${formatDate(maxAge)} and ${formatDate(minAge)} years ago`);
+		return;
+	}
 
-    if (isInputValid(nameInput) && isInputValid(emailInput) && isInputValid(passwordInput) && isInputValid(dobInput)) {
-        storeUserData(nameInput.value, emailInput.value, passwordInput.value, dobInput.value, termsCheckbox.checked);
-    }
+	saveToStorage(namesEl.value, emailEl.value, passwordEl.value, dobEl.value, termsEl.checked);
+	displayHistory();
+	formEl.reset();
 });
 
-retrieveUserData();
+// Initial display of user history
+displayHistory();
